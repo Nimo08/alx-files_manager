@@ -1,5 +1,5 @@
 import sha1 from 'sha1';
-import { ObjectId } from 'mongodb';
+import { ObjectID } from 'mongodb';
 import Queue from 'bull';
 import dbClient from '../utils/db';
 import redisClient from '../utils/redis';
@@ -45,7 +45,7 @@ class UsersController {
     const userId = await redisClient.get(key);
     if (userId) {
       const users = dbClient.db.collection('users');
-      const idObject = new ObjectId(userId);
+      const idObject = new ObjectID(userId);
       users.findOne({ _id: idObject }, (err, user) => {
         if (user) {
           response.status(200).json({ id: userId, email: user.email });
@@ -54,6 +54,7 @@ class UsersController {
         }
       });
     } else {
+      console.log('Not found');
       response.status(401).json({ error: 'Unauthorized' });
     }
   }
