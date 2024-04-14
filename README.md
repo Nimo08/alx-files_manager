@@ -1,0 +1,1 @@
+This respository contains scripts for the tasks in 0x04. Files manager.
