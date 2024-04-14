@@ -1,7 +1,5 @@
 import sha1 from 'sha1';
-import { ObjectId } from 'mongodb';
 import dbClient from '../utils/db';
-import redisClient from '../utils/redis';
 import { userQueue } from '../worker';
 
 class UsersController {
@@ -15,8 +13,8 @@ class UsersController {
       return res.status(400).json({ error: 'Missing password' });
     }
 
-    const userExists = await dbClient.dbClient.collection('users').findOne({ email });
-    if (userExists) {
+    const existingUser = await dbClient.dbClient.collection('users').findOne({ email });
+    if (existingUser) {
       return res.status(400).json({ error: 'Already exist' });
     }
 
@@ -25,20 +23,6 @@ class UsersController {
     const result = await dbClient.dbClient.collection('users').insertOne({ email, password: hashedPassword });
     userQueue.add({ userId: result.insertedId });
     return res.status(201).json({ id: result.insertedId, email });
-  }
-
-  static async getMe(req, res) {
-    const token = req.header('X-Token');
-    if (!token) return res.status(401).json({ error: 'Unauthorized' });
-    const userId = await redisClient.get(`auth_${token}`);
-    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
-
-    const users = await dbClient.dbClient.collection('users');
-    const ObjId = new ObjectId(userId);
-
-    const user = await users.findOne({ _id: ObjId });
-    if (user) return res.status(200).json({ id: userId, email: user.email });
-    return res.status(401).json({ error: 'Unauthorized' });
   }
 }
 
