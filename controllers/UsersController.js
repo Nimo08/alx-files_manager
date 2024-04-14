@@ -1,62 +1,44 @@
 import sha1 from 'sha1';
-import { ObjectID } from 'mongodb';
-import Queue from 'bull';
+import { ObjectId } from 'mongodb';
 import dbClient from '../utils/db';
 import redisClient from '../utils/redis';
-
-const userQueue = new Queue('userQueue', 'redis://127.0.0.1:6379');
+import { userQueue } from '../worker';
 
 class UsersController {
-  static postNew(request, response) {
-    const { email } = request.body;
-    const { password } = request.body;
+  static async postNew(request, response) {
+    const { email, password } = request.body;
 
     if (!email) {
-      response.status(400).json({ error: 'Missing email' });
-      return;
+      return response.status(400).json({ error: 'Missing email' });
     }
     if (!password) {
-      response.status(400).json({ error: 'Missing password' });
-      return;
+      return response.status(400).json({ error: 'Missing password' });
     }
 
-    const users = dbClient.db.collection('users');
-    users.findOne({ email }, (err, user) => {
-      if (user) {
-        response.status(400).json({ error: 'Already exist' });
-      } else {
-        const hashedPassword = sha1(password);
-        users.insertOne(
-          {
-            email,
-            password: hashedPassword,
-          },
-        ).then((result) => {
-          response.status(201).json({ id: result.insertedId, email });
-          userQueue.add({ userId: result.insertedId });
-        }).catch((error) => console.log(error));
-      }
-    });
+    const existingUser = await dbClient.dbClient.collection('users').findOne({ email });
+    if (existingUser) {
+      return response.status(400).json({ error: 'Already exist' });
+    }
+
+    const hashedPassword = sha1(password);
+
+    const result = await dbClient.dbClient.collection('users').insertOne({ email, password: hashedPassword });
+    userQueue.add({ userId: result.insertedId });
+    return response.status(201).json({ id: result.insertedId, email });
   }
 
   static async getMe(request, response) {
     const token = request.header('X-Token');
-    const key = `auth_${token}`;
-    const userId = await redisClient.get(key);
-    if (userId) {
-      const users = dbClient.db.collection('users');
-      const idObject = new ObjectID(userId);
-      users.findOne({ _id: idObject }, (err, user) => {
-        if (user) {
-          response.status(200).json({ id: userId, email: user.email });
-        } else {
-          response.status(401).json({ error: 'Unauthorized' });
-        }
-      });
-    } else {
-      console.log('Not found!');
-      response.status(401).json({ error: 'Unauthorized' });
-    }
+    if (!token) return response.status(401).json({ error: 'Unauthorized' });
+    const userId = await redisClient.get(`auth_${token}`);
+    if (!userId) return response.status(401).json({ error: 'Unauthorized' });
+
+    const users = await dbClient.dbClient.collection('users');
+    const ObjId = new ObjectId(userId);
+
+    const user = await users.findOne({ _id: ObjId });
+    if (user) return response.status(200).json({ id: userId, email: user.email });
+    return response.status(401).json({ error: 'Unauthorized' });
   }
 }
 
