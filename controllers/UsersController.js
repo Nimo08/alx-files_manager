@@ -54,7 +54,6 @@ class UsersController {
         }
       });
     } else {
-      console.log('Not found!');
       response.status(401).json({ error: 'Unauthorized' });
     }
   }
