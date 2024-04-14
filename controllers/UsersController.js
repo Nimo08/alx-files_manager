@@ -1,42 +1,30 @@
 import sha1 from 'sha1';
-import Queue from 'bull';
 import dbClient from '../utils/db';
 
-const userQueue = new Queue('userQueue', 'redis://127.0.0.1:6379');
-
 class UsersController {
-  static async postNew(request, response) {
-    const { email, password } = request.body;
+  static async postNew(req, res) {
+    const { email, password } = req.body;
 
     if (!email) {
-      return response.status(400).json({ error: 'Missing email' });
+      res.status(400).json({ error: 'Missing email' });
+      return;
     }
     if (!password) {
-      return response.status(400).json({ error: 'Missing password' });
+      res.status(400).json({ error: 'Missing password' });
+      return;
     }
 
-    try {
-      const users = dbClient.db.collection('users');
-      const existingUser = await users.findOne({ email });
-
-      if (existingUser) {
-        return response.status(400).json({ error: 'Already exist' });
+    const users = dbClient.db.collection('users');
+    await users.findOne({ email }, (err, result) => {
+      if (result) {
+        res.status(400).json({ error: 'Already exist' });
+      } else {
+        const hashedPasswd = sha1(password);
+        users.insertOne({ email, password: hashedPasswd }).then((user) => {
+          res.status(201).json({ id: user.insertedId, email });
+        });
       }
-
-      const hashedPasswd = sha1(password);
-      const result = await users.insertOne({
-        email,
-        password: hashedPasswd,
-      });
-
-      // Add user to queue after successful insertion
-      await userQueue.add({ userId: result.insertedId });
-
-      return response.status(201).json({ id: result.insertedId, email });
-    } catch (error) {
-      console.log(error);
-      return response.status(500).json({ error: 'Internal server error' });
-    }
+    });
   }
 }
 
