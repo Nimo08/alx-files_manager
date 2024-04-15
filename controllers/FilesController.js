@@ -180,9 +180,8 @@ async function getFile(request, response) {
 
   fs.stat(file.localPath, (err) => {
     if (err) {
-      return response.status(404).json({ error: 'Not found' });
+      response.status(404).json({ error: 'Not found' });
     }
-    // eslint-disable-next-line consistent-return
   });
 
   const mimeType = mime.lookup(file.name);
