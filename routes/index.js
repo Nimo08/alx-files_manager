@@ -1,10 +1,8 @@
 import { Router } from 'express';
 import AppController from '../controllers/AppController';
 
-const { postNew } = require('../controllers/UsersController');
-const { getConnect } = require('../controllers/AuthController');
-const { getDisconnect } = require('../controllers/AuthController');
-const { getMe } = require('../controllers/UsersController');
+const { postNew, getMe } = require('../controllers/UsersController');
+const { getConnect, getDisconnect } = require('../controllers/AuthController');
 
 const router = Router();
 
