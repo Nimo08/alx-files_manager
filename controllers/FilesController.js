@@ -119,4 +119,44 @@ async function getShow(request, response) {
   return response.status(200).json(file);
 }
 
-module.exports = { postUpload, getIndex, getShow };
+async function putPublish(request, response) {
+  const token = request.header('X-Token');
+  const key = `auth_${token}`;
+  const userId = await redisClient.get(key);
+  if (!userId) {
+    return response.status(401).json({ error: 'Unauthorized' });
+  }
+  const { id } = request.params;
+  const files = dbClient.dbClient.collection('files');
+  const objectId = new ObjectID(id);
+  const objectId2 = new ObjectID(userId);
+  const file = await files.findOne({ _id: objectId, userId: objectId2 });
+  if (!file) {
+    return response.status(404).json({ error: 'Not found' });
+  }
+  file.isPublic = true;
+  return response.json(file);
+}
+
+async function putUnpublish(request, response) {
+  const token = request.header('X-Token');
+  const key = `auth_${token}`;
+  const userId = await redisClient.get(key);
+  if (!userId) {
+    return response.status(401).json({ error: 'Unauthorized' });
+  }
+  const { id } = request.params;
+  const files = dbClient.dbClient.collection('files');
+  const objectId = new ObjectID(id);
+  const objectId2 = new ObjectID(userId);
+  const file = await files.findOne({ _id: objectId, userId: objectId2 });
+  if (!file) {
+    return response.status(404).json({ error: 'Not found' });
+  }
+  file.isPublic = false;
+  return response.json(file);
+}
+
+module.exports = {
+  postUpload, getIndex, getShow, putPublish, putUnpublish,
+};

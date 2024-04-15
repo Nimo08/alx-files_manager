@@ -4,7 +4,9 @@ import AppController from '../controllers/AppController';
 const { postNew, getMe } = require('../controllers/UsersController');
 const { getConnect, getDisconnect } = require('../controllers/AuthController');
 
-const { postUpload, getShow, getIndex } = require('../controllers/FilesController');
+const {
+  postUpload, getShow, getIndex, putPublish, putUnpublish,
+} = require('../controllers/FilesController');
 
 const router = Router();
 
@@ -25,5 +27,9 @@ router.post('/files', postUpload);
 router.get('/files/:id', getShow);
 
 router.get('/files', getIndex);
+
+router.put('/files/:id/publish', putPublish);
+
+router.put('/files/:id/publish', putUnpublish);
 
 module.exports = router;
