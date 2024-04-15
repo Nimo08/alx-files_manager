@@ -76,4 +76,47 @@ async function postUpload(request, response) {
   return response.status(400).json({ error: 'Invalid request' });
 }
 
-module.exports = { postUpload };
+async function getIndex(request, response) {
+  const token = request.header('X-Token');
+  const key = `auth_${token}`;
+  const user = await redisClient.get(key);
+  if (!user) {
+    return response.status(401).json({ error: 'Unauthorized' });
+  }
+  const { parentId, page = 0 } = request.query;
+  const files = dbClient.dbClient.collection('files');
+  let query;
+  if (!parentId) {
+    query = { userId: ObjectID(user) };
+  } else {
+    query = { parentId: ObjectID(parentId), userId: ObjectID(user) };
+  }
+  console.log(query);
+  const result = await files.aggregate([
+    { $match: query },
+    { $skip: parseInt(page, 10) * 20 },
+    { $limit: 20 },
+  ]).toArray();
+  const newArray = result.map(({ _id, ...rest }) => ({ id: _id, ...rest }));
+  return response.status(200).json(newArray);
+}
+
+async function getShow(request, response) {
+  const token = request.header('X-Token');
+  const key = `auth_${token}`;
+  const userId = await redisClient.get(key);
+  if (!userId) {
+    return response.status(401).json({ error: 'Unauthorized' });
+  }
+  const { id } = request.params;
+  const files = dbClient.dbClient.collection('files');
+  const objectId = new ObjectID(id);
+  const objectId2 = new ObjectID(userId);
+  const file = await files.findOne({ _id: objectId, userId: objectId2 });
+  if (!file) {
+    return response.status(404).json({ error: 'Not found' });
+  }
+  return response.status(200).json(file);
+}
+
+module.exports = { postUpload, getIndex, getShow };
